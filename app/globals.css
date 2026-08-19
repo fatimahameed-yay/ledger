@@ -630,3 +630,37 @@ input[type="range"]::-moz-range-thumb {
   font-style: italic;
   color: var(--olive-900);
 }
+
+/* ============ account tiles ============ */
+.acct-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+.acct {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 16px;
+  border-radius: var(--r);
+  background: rgba(255, 253, 250, 0.72);
+  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.15s, box-shadow 0.2s;
+}
+.acct:active { transform: scale(0.985); box-shadow: var(--shadow-lift); }
+.acct-ic {
+  width: 40px; height: 40px;
+  flex: 0 0 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+.acct-name { flex: 1; font-size: 15px; }
+.acct-amt { font-size: 21px; }
+.acct-go { color: var(--ink-faint); display: grid; place-items: center; }
+
+/* the sw update banner and misc */
+.divider { height: 1px; background: var(--line); margin: 18px 0; border: none; }

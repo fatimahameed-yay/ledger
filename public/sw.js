@@ -1,5 +1,5 @@
-const CACHE = "aura-v1";
-const SHELL = ["/", "/add", "/log", "/plan", "/glow", "/settings", "/manifest.webmanifest", "/icon-192.png"];
+const CACHE = "aura-v3";
+const SHELL = ["/", "/add", "/activity", "/spending", "/plan", "/settings", "/manifest.webmanifest", "/icon-192.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(

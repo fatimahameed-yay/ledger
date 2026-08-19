@@ -1,35 +1,34 @@
-export type Method = "current" | "cash" | "card" | "savings";
 export type Kind = "need" | "want";
-export type SavingsMode = "percent" | "amount";
+export type TxType = "spend" | "income" | "transfer";
+
+export interface Account {
+  id: string;
+  name: string;
+  icon: string;
+  tint: string;
+  opening: number;      // what was already in it when you started
+  saving: boolean;      // true = a savings pot, false = day-to-day
+}
 
 export interface Category {
   id: string;
   label: string;
-  icon: string;   // name from lib/icons
-  tint: string;   // hex
+  icon: string;
+  tint: string;
 }
 
-export interface Expense {
+export interface Txn {
   id: string;
-  date: string;        // YYYY-MM-DD
+  date: string;         // YYYY-MM-DD
+  type: TxType;
   amount: number;
-  category: string;
-  merchant: string;
+  account: string;      // spend/transfer: money leaves here. income: money lands here.
+  toAccount?: string;   // transfer only
+  category?: string;    // spend only
+  merchant: string;     // shop, or who paid you
   note: string;
-  method: Method;
-  kind: Kind;
-  mood?: string;
+  kind?: Kind;
   createdAt: number;
-}
-
-export interface MonthPlan {
-  income: number;
-  savingsMode: SavingsMode;
-  savingsPct: number;
-  savingsAmount: number;
-  fixedTotal: number;        // 0 → use the recurring list
-  spendableOverride: number; // 0 → derive from income − savings − fixed
-  envelopes: Record<string, number>;
 }
 
 export interface Goal {
@@ -48,6 +47,7 @@ export interface Recurring {
   amount: number;
   day: number;
   category: string;
+  account: string;
   active: boolean;
 }
 
@@ -60,25 +60,29 @@ export interface WishItem {
   resolved?: "bought" | "passed";
 }
 
+/** optional, per month — leave the limit at 0 and nothing is enforced */
+export interface MonthLimit {
+  monthlyLimit: number;
+  envelopes: Record<string, number>;
+}
+
 export interface Settings {
   name: string;
   currency: string;
-  savingsMode: SavingsMode;   // default applied to a new month
-  savingsPct: number;
-  savingsAmount: number;
-  pauseDays: number;          // how long the pause list holds something
-  methods: Method[];          // which accounts you actually use
+  onboarded: boolean;
+  startMonth: string;   // nothing before this counts
+  pauseDays: number;
   startedAt: number;
 }
 
 export interface Ledger {
   version: number;
   settings: Settings;
+  accounts: Account[];
   categories: Category[];
-  plans: Record<string, MonthPlan>;
-  expenses: Expense[];
-  goals: Goal[];
+  txns: Txn[];
+  limits: Record<string, MonthLimit>;
   recurring: Recurring[];
+  goals: Goal[];
   wishlist: WishItem[];
-  savingsLog: { id: string; date: string; amount: number; goalId?: string; note?: string }[];
 }

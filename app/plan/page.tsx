@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useLedger, computeStats } from "@/lib/store";
+import { useLedger, monthSummary } from "@/lib/store";
 import { catOf } from "@/lib/categories";
-import { money, monthShort, shiftMonth } from "@/lib/format";
+import { money } from "@/lib/format";
 import { Icon } from "@/lib/icons";
 import { MonthSwitch, Sheet, Bar, Field, Empty, Dot, IconBtn } from "@/components/UI";
 
@@ -11,27 +11,25 @@ const num = (v: string) => Number(v.replace(/[^0-9.]/g, "")) || 0;
 
 export default function PlanPage() {
   const {
-    ready, data, month, setMonth, plan, savePlan,
+    ready, data, month, setMonth, limit, saveLimit,
     addRecurring, removeRecurring, toggleRecurring,
+    addWish, resolveWish, removeWish,
   } = useLedger();
   const cur = data.settings.currency;
-  const stats = useMemo(() => computeStats(data, month), [data, month]);
+  const sm = useMemo(() => monthSummary(data, month), [data, month]);
 
   const [billSheet, setBillSheet] = useState(false);
-  const [envSheet, setEnvSheet] = useState(false);
+  const [capSheet, setCapSheet] = useState(false);
+  const [wishSheet, setWishSheet] = useState(false);
 
   if (!ready) return <div style={{ height: "60vh" }} />;
 
-  const prev = shiftMonth(month, -1);
-  const prevPlan = data.plans[prev];
   const recurring = [...data.recurring].sort((a, b) => a.day - b.day);
-  const caps = Object.entries(plan.envelopes).filter(([, v]) => v > 0);
-
-  const slices = [
-    { label: "Savings", value: stats.toSavings, color: "linear-gradient(90deg,#6b7442,#8d9a5b)" },
-    { label: "Fixed", value: stats.fixed, color: "linear-gradient(90deg,#c9b8a3,#e4d9c9)" },
-    { label: "To spend", value: stats.spendable, color: "linear-gradient(90deg,#c9a3bb,#e3c4d7)" },
-  ];
+  const recurringTotal = recurring.filter((r) => r.active).reduce((a, r) => a + r.amount, 0);
+  const caps = Object.entries(limit.envelopes).filter(([, v]) => v > 0);
+  const pauseDays = data.settings.pauseDays;
+  const openWishes = data.wishlist.filter((w) => !w.resolved);
+  const passed = data.wishlist.filter((w) => w.resolved === "passed");
 
   return (
     <div className="fade-up">
@@ -42,110 +40,51 @@ export default function PlanPage() {
         </div>
       </header>
 
-      {/* ---- income ---- */}
+      {/* ---- monthly limit ---- */}
       <section className="hero">
-        <span className="label">Income</span>
+        <span className="label">Monthly spending limit</span>
         <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 4 }}>
-          <span className="amount" style={{ fontSize: 24, color: "var(--ink-soft)" }}>{cur}</span>
+          <span className="amount" style={{ fontSize: 22, color: "var(--ink-soft)" }}>{cur}</span>
           <input
             className="input-amount"
-            style={{ flex: 1, textAlign: "left", fontSize: 40, padding: "4px 0 10px" }}
+            style={{ flex: 1, textAlign: "left", fontSize: 36, padding: "4px 0 10px" }}
             inputMode="decimal"
-            placeholder="0"
-            value={plan.income ? plan.income.toLocaleString("en-US") : ""}
-            onChange={(e) => savePlan({ income: num(e.target.value) })}
+            placeholder="none"
+            value={limit.monthlyLimit ? limit.monthlyLimit.toLocaleString("en-US") : ""}
+            onChange={(e) => saveLimit({ monthlyLimit: num(e.target.value) })}
           />
         </div>
 
-        {stats.income > 0 && (
-          <>
-            <div style={{ display: "flex", height: 10, borderRadius: 999, overflow: "hidden", marginTop: 16, gap: 2 }}>
-              {slices.map((s) => (
-                <div key={s.label} style={{ flex: Math.max(s.value, 0.001), background: s.color }} />
-              ))}
+        {limit.monthlyLimit > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <Bar
+              pct={sm.pctOfLimit}
+              color={sm.pctOfLimit > 100 ? "linear-gradient(90deg,#bf7a72,#c9a3bb)" : "linear-gradient(90deg,#8d9a5b,#e3c4d7)"}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 9 }}>
+              <span className="faint" style={{ fontSize: 12 }}>{money(sm.spent, cur)} spent</span>
+              <span className="faint" style={{ fontSize: 12 }}>
+                {sm.leftOfLimit < 0 ? `${money(-sm.leftOfLimit, cur)} over` : `${money(sm.leftOfLimit, cur)} left`}
+              </span>
             </div>
-            <div style={{ marginTop: 14 }}>
-              {slices.map((s) => (
-                <div key={s.label} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 14 }}>
-                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <i style={{ width: 9, height: 9, borderRadius: 999, background: s.color, display: "inline-block" }} />
-                    {s.label}
-                  </span>
-                  <span className="num">
-                    {money(s.value, cur)}
-                    <span className="faint" style={{ fontSize: 11.5, marginLeft: 6 }}>
-                      {Math.round((s.value / stats.income) * 100)}%
-                    </span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </>
+            {sm.daysLeft > 0 && sm.leftOfLimit > 0 && (
+              <p className="faint" style={{ fontSize: 12, margin: "10px 0 0" }}>
+                {money(Math.round(sm.perDayLeft), cur)} a day for {sm.daysLeft} day{sm.daysLeft === 1 ? "" : "s"}.
+              </p>
+            )}
+          </div>
         )}
-
-        {prevPlan && prevPlan.income > 0 && plan.income === 0 && (
-          <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginTop: 14 }} onClick={() => savePlan({ ...prevPlan })}>
-            <Icon name="refresh" size={14} /> Copy {monthShort(prev)}
-          </button>
+        {limit.monthlyLimit === 0 && (
+          <p className="sub" style={{ marginBottom: 0 }}>Optional. Leave blank to just track.</p>
         )}
       </section>
 
-      {/* ---- savings ---- */}
-      <h2 className="section">Savings</h2>
-      <div className="card">
-        <div className="segment" style={{ marginBottom: 16 }}>
-          <button data-on={plan.savingsMode === "percent"} onClick={() => savePlan({ savingsMode: "percent" })}>
-            Percent
-          </button>
-          <button data-on={plan.savingsMode === "amount"} onClick={() => savePlan({ savingsMode: "amount" })}>
-            Fixed amount
-          </button>
-        </div>
-
-        {plan.savingsMode === "percent" ? (
-          <>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <span className="label">{plan.savingsPct}% of income</span>
-              <span className="amount amount-md" style={{ color: "var(--olive-700)" }}>
-                {money(stats.toSavings, cur)}
-              </span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={90}
-              step={1}
-              value={plan.savingsPct}
-              onChange={(e) => savePlan({ savingsPct: Number(e.target.value) })}
-              style={{ width: "100%", marginTop: 12 }}
-            />
-            <div className="chips">
-              {[10, 20, 25, 30, 50].map((p) => (
-                <button key={p} className="chip" data-on={plan.savingsPct === p} onClick={() => savePlan({ savingsPct: p })}>
-                  {p}%
-                </button>
-              ))}
-            </div>
-          </>
-        ) : (
-          <Field label={`Exact amount (${cur})`}>
-            <input
-              className="input"
-              inputMode="decimal"
-              placeholder="0"
-              value={plan.savingsAmount || ""}
-              onChange={(e) => savePlan({ savingsAmount: num(e.target.value) })}
-            />
-          </Field>
-        )}
-      </div>
-
-      {/* ---- fixed ---- */}
-      <h2 className="section">Fixed</h2>
+      {/* ---- recurring ---- */}
+      <h2 className="section">Recurring</h2>
       <div className="card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-          <span className="label">{plan.fixedTotal > 0 ? "Manual total" : "From list"}</span>
-          <span className="amount amount-md">{money(stats.fixed, cur)}</span>
+          <span className="label">Every month</span>
+          <span className="amount amount-md">{money(recurringTotal, cur)}</span>
         </div>
 
         {recurring.length === 0 ? (
@@ -171,52 +110,20 @@ export default function PlanPage() {
         <button className="btn btn-ghost" style={{ width: "100%", marginTop: 12 }} onClick={() => setBillSheet(true)}>
           <Icon name="plus" size={14} /> Add recurring
         </button>
-
-        <hr className="divider" />
-        <Field label={`Or one flat total (${cur})`}>
-          <input
-            className="input"
-            inputMode="decimal"
-            placeholder="leave empty to use the list"
-            value={plan.fixedTotal || ""}
-            onChange={(e) => savePlan({ fixedTotal: num(e.target.value) })}
-          />
-        </Field>
-        <p className="faint" style={{ fontSize: 11.5, margin: 0 }}>Taken off the top — don&apos;t log these as entries.</p>
-      </div>
-
-      {/* ---- spendable ---- */}
-      <h2 className="section">Budget</h2>
-      <div className="card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <span className="label">{stats.spendableIsManual ? "Set by you" : "Whatever is left"}</span>
-          <span className="amount amount-md" style={{ color: "var(--olive-900)" }}>{money(stats.spendable, cur)}</span>
-        </div>
-        <div style={{ marginTop: 14 }}>
-          <Field label={`Override the monthly limit (${cur})`}>
-            <input
-              className="input"
-              inputMode="decimal"
-              placeholder={`empty = ${money(Math.max(0, stats.income - stats.toSavings - stats.fixed), cur)}`}
-              value={plan.spendableOverride || ""}
-              onChange={(e) => savePlan({ spendableOverride: num(e.target.value) })}
-            />
-          </Field>
-        </div>
-        <p className="faint" style={{ fontSize: 11.5, margin: 0 }}>
-          {money(Math.round(stats.dailyAllowance), cur)} a day across {stats.daysTotal} days.
+        <p className="faint" style={{ fontSize: 11.5, margin: "12px 0 0" }}>
+          A reminder list. Log each one on the Add tab when it actually leaves your account.
         </p>
       </div>
 
       {/* ---- category caps ---- */}
-      <h2 className="section">Limits</h2>
+      <h2 className="section">Category limits</h2>
       <div className="card">
         {caps.length === 0 ? (
-          <Empty icon="flag" title="No category limits" />
+          <Empty icon="flag" title="No limits set" />
         ) : (
           caps.map(([id, cap]) => {
             const k = catOf(data.categories, id);
-            const spent = stats.byCategory.find((c) => c.id === id)?.total ?? 0;
+            const spent = sm.byCategory.find((c) => c.id === id)?.total ?? 0;
             const pct = (spent / cap) * 100;
             return (
               <div key={id} style={{ marginBottom: 14 }}>
@@ -237,8 +144,48 @@ export default function PlanPage() {
             );
           })
         )}
-        <button className="btn btn-ghost" style={{ width: "100%", marginTop: 8 }} onClick={() => setEnvSheet(true)}>
+        <button className="btn btn-ghost" style={{ width: "100%", marginTop: 8 }} onClick={() => setCapSheet(true)}>
           Set limits
+        </button>
+      </div>
+
+      {/* ---- pause list ---- */}
+      <h2 className="section">Pause list</h2>
+      <div className="card">
+        <p className="faint" style={{ fontSize: 12, marginTop: 0 }}>
+          Wait {pauseDays} days before buying. {passed.length > 0 && `Skipped ${money(passed.reduce((a, w) => a + w.amount, 0), cur)} so far.`}
+        </p>
+
+        {openWishes.length === 0 ? (
+          <Empty icon="clock" title="Nothing paused" />
+        ) : (
+          openWishes.map((w) => {
+            const waited = Math.floor((Date.now() - w.addedAt) / 86400000);
+            const ready = waited >= pauseDays;
+            return (
+              <div key={w.id} style={{ marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 15 }}>{w.name}</span>
+                  <span className="amount" style={{ fontSize: 17 }}>{money(w.amount, cur)}</span>
+                  <IconBtn icon="close" label="Remove" onClick={() => removeWish(w.id)} />
+                </div>
+                <Bar pct={(Math.min(waited, pauseDays) / pauseDays) * 100} color="linear-gradient(90deg,#c9a3bb,#b3bd8e)" />
+                <p className="faint" style={{ fontSize: 11.5, margin: "7px 0 0" }}>
+                  {ready ? "Time's up" : `Day ${waited} of ${pauseDays}`}
+                </p>
+                {ready && (
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => resolveWish(w.id, "passed")}>Skip</button>
+                    <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => resolveWish(w.id, "bought")}>Buy</button>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+
+        <button className="btn btn-ghost" style={{ width: "100%", marginTop: 8 }} onClick={() => setWishSheet(true)}>
+          <Icon name="plus" size={14} /> Pause something
         </button>
       </div>
 
@@ -247,14 +194,12 @@ export default function PlanPage() {
         <RecurringForm
           cur={cur}
           categories={data.categories}
-          onAdd={(r) => {
-            addRecurring(r);
-            setBillSheet(false);
-          }}
+          accounts={data.accounts}
+          onAdd={(r) => { addRecurring(r); setBillSheet(false); }}
         />
       </Sheet>
 
-      <Sheet open={envSheet} onClose={() => setEnvSheet(false)} title="Limits">
+      <Sheet open={capSheet} onClose={() => setCapSheet(false)} title="Category limits">
         {data.categories.map((c) => (
           <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 0" }}>
             <Icon name={c.icon} size={17} style={{ color: c.tint }} />
@@ -264,30 +209,34 @@ export default function PlanPage() {
               style={{ width: 116, padding: "9px 12px", textAlign: "right" }}
               inputMode="decimal"
               placeholder={cur}
-              value={plan.envelopes[c.id] || ""}
-              onChange={(e) => savePlan({ envelopes: { ...plan.envelopes, [c.id]: num(e.target.value) } })}
+              value={limit.envelopes[c.id] || ""}
+              onChange={(e) => saveLimit({ envelopes: { ...limit.envelopes, [c.id]: num(e.target.value) } })}
             />
           </div>
         ))}
-        <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => setEnvSheet(false)}>Done</button>
+        <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => setCapSheet(false)}>Done</button>
+      </Sheet>
+
+      <Sheet open={wishSheet} onClose={() => setWishSheet(false)} title="Pause">
+        <WishForm cur={cur} onAdd={(w) => { addWish(w); setWishSheet(false); }} />
       </Sheet>
     </div>
   );
 }
 
 function RecurringForm({
-  cur,
-  categories,
-  onAdd,
+  cur, categories, accounts, onAdd,
 }: {
   cur: string;
   categories: { id: string; label: string; icon: string; tint: string }[];
-  onAdd: (r: { name: string; amount: number; day: number; category: string; active: boolean }) => void;
+  accounts: { id: string; name: string; icon: string; tint: string }[];
+  onAdd: (r: { name: string; amount: number; day: number; category: string; account: string; active: boolean }) => void;
 }) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [day, setDay] = useState("1");
   const [category, setCategory] = useState(categories[0]?.id ?? "other");
+  const [account, setAccount] = useState(accounts[0]?.id ?? "current");
 
   return (
     <div>
@@ -299,6 +248,15 @@ function RecurringForm({
       </Field>
       <Field label="Day of month">
         <input className="input" inputMode="numeric" value={day} onChange={(e) => setDay(e.target.value.replace(/[^0-9]/g, ""))} />
+      </Field>
+      <Field label="Paid from">
+        <div className="chips">
+          {accounts.map((a) => (
+            <button key={a.id} className="chip" data-on={account === a.id} onClick={() => setAccount(a.id)}>
+              <Icon name={a.icon} size={14} style={{ color: a.tint }} /> {a.name}
+            </button>
+          ))}
+        </div>
       </Field>
       <Field label="Category">
         <div className="chips">
@@ -318,11 +276,34 @@ function RecurringForm({
             amount: Number(amount) || 0,
             day: Math.min(28, Math.max(1, Number(day) || 1)),
             category,
+            account,
             active: true,
           })
         }
       >
         Add
+      </button>
+    </div>
+  );
+}
+
+function WishForm({ cur, onAdd }: { cur: string; onAdd: (w: { name: string; amount: number; url?: string }) => void }) {
+  const [name, setName] = useState("");
+  const [amount, setAmount] = useState("");
+  return (
+    <div>
+      <Field label="What">
+        <input className="input" autoFocus placeholder="The coat" value={name} onChange={(e) => setName(e.target.value)} />
+      </Field>
+      <Field label={`Price (${cur})`}>
+        <input className="input" inputMode="decimal" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))} />
+      </Field>
+      <button
+        className="btn btn-primary"
+        disabled={!name.trim() || !Number(amount)}
+        onClick={() => onAdd({ name: name.trim(), amount: Number(amount) || 0 })}
+      >
+        Start
       </button>
     </div>
   );

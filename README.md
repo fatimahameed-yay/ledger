@@ -4,28 +4,34 @@ A quiet, personal expense tracker built for a phone home screen. Cream, olive an
 aura gradients, editorial serif numbers, and no accounts, servers, or sign-ups —
 everything lives in your own browser storage.
 
-## What's inside
+## How it works
 
-**Home** — safe-to-spend-today ring, current-account and savings balances, per-day
-rhythm chart, category split, recent entries.
+It starts by asking what you actually have — today's balance in your current account and
+in savings. Nothing before that month counts.
 
-**Add** — amount, date, category, where, account, need/want, feeling, note.
+**Home** — total balance across all accounts, then each account as a card you can tap
+into. Below that: what you spent and what came in this month, an optional monthly limit,
+where the money went, and recent activity.
 
-**Log** — searchable, filterable, editable history grouped by day.
+**Account page** — tap Current or Savings for that account's balance, its in/out for the
+month, and its own history. Savings also holds your goals.
 
-**Plan** — set every number yourself for any month: income, savings (a percentage *or*
-a fixed amount), recurring costs or a flat fixed total, a manual override for the monthly
-spending limit, and per-category caps.
+**Add** — three modes. *Spent* takes money out of an account, *Received* puts it in,
+*Moved* shifts it between accounts. Balances update immediately.
 
-**Insights** — trends vs last month, needs/wants split, six-month trail, weekday pattern,
-top places, savings goals, and a pause list for the things you nearly bought.
+**Activity** — everything, grouped by day, searchable and filterable. Tap to edit or
+delete.
 
-**Settings** — name, currency (any symbol you like), which accounts you use, default
-savings rule, pause-list waiting time, a full category editor (name, icon, colour, order,
-add/delete), JSON backup, CSV export.
+**Spending** — where it goes: categories, needs vs wants, day by day, by weekday, top
+places, six-month trail.
 
-Currency defaults to rupees. Categories are seeded on first run and are entirely yours
-to change afterwards. Every icon is a hand-drawn line SVG — no emoji.
+**Plan** — optional monthly spending limit, a recurring-costs reminder list, per-category
+limits, and a pause list for things you nearly bought.
+
+**Settings** — name, currency, accounts (add/rename/icon/colour/starting balance),
+categories (same), pause-list wait, JSON backup, CSV export.
+
+Every icon is a hand-drawn line SVG — no emoji. Currency defaults to rupees.
 
 ## Run it locally
 

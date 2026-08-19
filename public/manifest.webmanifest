@@ -15,6 +15,6 @@
   ],
   "shortcuts": [
     { "name": "Add an entry", "url": "/add" },
-    { "name": "The log", "url": "/log" }
+    { "name": "Activity", "url": "/activity" }
   ]
 }
