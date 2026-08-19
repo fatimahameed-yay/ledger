@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useLedger, computeStats, expensesFor, sum, lastMonths } from "@/lib/store";
-import { CATEGORIES, cat } from "@/lib/categories";
-import { money, monthShort, monthLabel, shiftMonth, monthKey } from "@/lib/format";
-import { Ring, Sheet, Bar, Field, Empty } from "@/components/UI";
+import { catOf } from "@/lib/categories";
+import { money, monthShort, shiftMonth } from "@/lib/format";
+import { Icon, PICKER_ICONS } from "@/lib/icons";
+import { Ring, Sheet, Bar, Field, Empty, Dot, IconBtn } from "@/components/UI";
 
 type Tab = "insights" | "goals" | "pause";
 
@@ -17,14 +18,13 @@ export default function GlowPage() {
   return (
     <div className="fade-up">
       <header className="page-head">
-        <p className="eyebrow">The glow-up</p>
-        <h1 className="display">Patterns,<br />goals, restraint.</h1>
+        <h1 className="display">Insights</h1>
       </header>
 
       <div className="segment">
-        <button data-on={tab === "insights"} onClick={() => setTab("insights")}>Insights</button>
+        <button data-on={tab === "insights"} onClick={() => setTab("insights")}>Trends</button>
         <button data-on={tab === "goals"} onClick={() => setTab("goals")}>Goals</button>
-        <button data-on={tab === "pause"} onClick={() => setTab("pause")}>Pause list</button>
+        <button data-on={tab === "pause"} onClick={() => setTab("pause")}>Pause</button>
       </div>
 
       <div style={{ marginTop: 18 }}>
@@ -36,7 +36,7 @@ export default function GlowPage() {
   );
 }
 
-/* ==================== INSIGHTS ==================== */
+/* ==================== TRENDS ==================== */
 function Insights() {
   const { data, month } = useLedger();
   const cur = data.settings.currency;
@@ -44,13 +44,14 @@ function Insights() {
   const prev = shiftMonth(month, -1);
   const prevStats = useMemo(() => computeStats(data, prev), [data, prev]);
 
-  const trail = useMemo(() => {
-    return lastMonths(month, 6).map((m) => ({
-      m,
-      total: sum(expensesFor(data, m).filter((e) => e.method !== "savings")),
-      saved: (data.plans[m]?.income ?? 0) * ((data.plans[m]?.savingsPct ?? 0) / 100),
-    }));
-  }, [data, month]);
+  const trail = useMemo(
+    () =>
+      lastMonths(month, 6).map((m) => ({
+        m,
+        total: sum(expensesFor(data, m).filter((e) => e.method !== "savings")),
+      })),
+    [data, month]
+  );
   const trailMax = Math.max(...trail.map((t) => t.total), 1);
 
   const weekday = useMemo(() => {
@@ -63,54 +64,39 @@ function Insights() {
   }, [data, month]);
   const wMax = Math.max(...weekday, 1);
   const worstDay = weekday.indexOf(wMax);
-  const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
+  const FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
   const biggest = useMemo(
     () => [...expensesFor(data, month)].filter((e) => e.method !== "savings").sort((a, b) => b.amount - a.amount)[0],
     [data, month]
   );
 
-  const lifetimeSaved = useMemo(
-    () =>
-      Object.entries(data.plans).reduce(
-        (a, [, p]) => a + (p.income ?? 0) * ((p.savingsPct ?? 0) / 100),
-        0
-      ),
-    [data.plans]
-  );
-
   const delta = stats.spent - prevStats.spent;
   const topCat = stats.byCategory[0];
-  const trimTarget = topCat ? topCat.total * 0.2 * 12 : 0;
 
   if (stats.spent === 0 && stats.income === 0) {
-    return (
-      <div className="card">
-        <Empty emoji="🔮" title="Nothing to read yet" line="Log a week of spending and the patterns start showing up here." />
-      </div>
-    );
+    return <div className="card"><Empty icon="chart" title="Nothing to read yet" /></div>;
   }
 
   return (
     <>
-      {/* headline */}
       <div className="hero">
-        <p className="label">{monthLabel(month)}</p>
+        <span className="label">Spent</span>
         <p className="amount amount-xl" style={{ margin: "6px 0 0" }}>{money(stats.spent, cur)}</p>
         {prevStats.spent > 0 && (
-          <p style={{ fontSize: 13.5, margin: "10px 0 0", color: delta > 0 ? "var(--alert)" : "var(--ok)" }}>
-            {delta > 0 ? "▲" : "▼"} {money(Math.abs(delta), cur)} vs {monthShort(prev)}
-            <span className="faint"> ({prevStats.spent > 0 ? Math.abs(Math.round((delta / prevStats.spent) * 100)) : 0}%)</span>
+          <p style={{ fontSize: 13.5, margin: "10px 0 0", color: delta > 0 ? "var(--alert)" : "var(--ok)", display: "flex", alignItems: "center", gap: 6 }}>
+            <Icon name={delta > 0 ? "up" : "down"} size={14} />
+            {money(Math.abs(delta), cur)} vs {monthShort(prev)}
           </p>
         )}
       </div>
 
-      {/* needs vs wants */}
-      <h2 className="section">Needs vs wants</h2>
+      <h2 className="section">Needs & wants</h2>
       <div className="card" style={{ display: "flex", alignItems: "center", gap: 20 }}>
-        <Ring pct={stats.spent > 0 ? (stats.needTotal / stats.spent) * 100 : 0} size={112} stroke={11} tone="calm">
+        <Ring pct={stats.spent > 0 ? (stats.needTotal / stats.spent) * 100 : 0} size={106} stroke={10} tone="calm">
           <div>
-            <p className="amount" style={{ fontSize: 24, margin: 0 }}>
+            <p className="amount" style={{ fontSize: 23, margin: 0 }}>
               {stats.spent > 0 ? Math.round((stats.needTotal / stats.spent) * 100) : 0}%
             </p>
             <p className="label" style={{ fontSize: 9 }}>needs</p>
@@ -119,36 +105,31 @@ function Insights() {
         <div style={{ flex: 1 }}>
           <div style={{ marginBottom: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginBottom: 5 }}>
-              <span>🌿 Needs</span><span className="num">{money(stats.needTotal, cur)}</span>
+              <span>Needs</span><span className="num">{money(stats.needTotal, cur)}</span>
             </div>
             <Bar pct={stats.spent ? (stats.needTotal / stats.spent) * 100 : 0} color="linear-gradient(90deg,#8d9a5b,#b3bd8e)" />
           </div>
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginBottom: 5 }}>
-              <span>🎀 Wants</span><span className="num">{money(stats.wantTotal, cur)}</span>
+              <span>Wants</span><span className="num">{money(stats.wantTotal, cur)}</span>
             </div>
             <Bar pct={stats.spent ? (stats.wantTotal / stats.spent) * 100 : 0} color="linear-gradient(90deg,#c9a3bb,#e3c4d7)" />
           </div>
         </div>
       </div>
 
-      {/* six month trail */}
-      <h2 className="section">The last six months</h2>
+      <h2 className="section">Six months</h2>
       <div className="card">
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 110 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 108 }}>
           {trail.map((t) => (
             <div key={t.m} style={{ flex: 1, display: "grid", gap: 6, justifyItems: "center" }}>
-              <span className="faint num" style={{ fontSize: 10 }}>
-                {t.total > 0 ? money(t.total, cur, true) : ""}
-              </span>
+              <span className="faint num" style={{ fontSize: 10 }}>{t.total > 0 ? money(t.total, cur, true) : ""}</span>
               <div
                 style={{
                   width: "100%",
-                  height: Math.max(4, (t.total / trailMax) * 74),
+                  height: Math.max(4, (t.total / trailMax) * 72),
                   borderRadius: 8,
-                  background: t.m === month
-                    ? "linear-gradient(180deg,#c9a3bb,#8d9a5b)"
-                    : "linear-gradient(180deg,#dfe4cd,#c9b8a3)",
+                  background: t.m === month ? "linear-gradient(180deg,#c9a3bb,#8d9a5b)" : "linear-gradient(180deg,#dfe4cd,#c9b8a3)",
                 }}
               />
               <span className="faint" style={{ fontSize: 10 }}>{monthShort(t.m)}</span>
@@ -157,44 +138,39 @@ function Insights() {
         </div>
       </div>
 
-      {/* weekday */}
-      <h2 className="section">Your week</h2>
+      <h2 className="section">By day</h2>
       <div className="card">
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 84 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 82 }}>
           {weekday.map((v, i) => (
             <div key={i} style={{ flex: 1, display: "grid", gap: 6, justifyItems: "center" }}>
               <div
                 style={{
                   width: "100%",
-                  height: Math.max(4, (v / wMax) * 58),
+                  height: Math.max(4, (v / wMax) * 56),
                   borderRadius: 8,
-                  background: i === worstDay
-                    ? "linear-gradient(180deg,#c9a3bb,#a86f92)"
-                    : "linear-gradient(180deg,#dfe4cd,#b3bd8e)",
+                  background: i === worstDay ? "linear-gradient(180deg,#c9a3bb,#a86f92)" : "linear-gradient(180deg,#dfe4cd,#b3bd8e)",
                 }}
               />
-              <span className="faint" style={{ fontSize: 10 }}>{DAYS[i][0]}</span>
+              <span className="faint" style={{ fontSize: 10 }}>{DAYS[i]}</span>
             </div>
           ))}
         </div>
         {wMax > 1 && (
-          <p className="sub" style={{ marginBottom: 0 }}>
-            <strong style={{ fontWeight: 500 }}>{DAYS[worstDay]}</strong> is your most expensive day —
-            {" "}{money(weekday[worstDay], cur)} so far this month.
+          <p className="faint" style={{ fontSize: 12, margin: "12px 0 0" }}>
+            {FULL[worstDay]} costs you most.
           </p>
         )}
       </div>
 
-      {/* places */}
       {stats.topMerchants.length > 0 && (
         <>
-          <h2 className="section">Where you keep going back</h2>
+          <h2 className="section">Places</h2>
           <div className="card card-tight">
             {stats.topMerchants.map((m) => (
               <div className="row" key={m.name}>
                 <div className="row-main">
                   <div className="row-title">{m.name}</div>
-                  <div className="row-sub">{m.count} visit{m.count === 1 ? "" : "s"} · avg {money(Math.round(m.total / m.count), cur)}</div>
+                  <div className="row-sub">{m.count}×</div>
                 </div>
                 <span className="amount" style={{ fontSize: 18 }}>{money(m.total, cur)}</span>
               </div>
@@ -203,38 +179,28 @@ function Insights() {
         </>
       )}
 
-      {/* nudges */}
-      <h2 className="section">Gentle notes</h2>
+      <h2 className="section">Notes</h2>
       <div className="card">
         {topCat && (
           <Note
-            emoji={cat(topCat.id).emoji}
-            title={`${cat(topCat.id).label} is your biggest line`}
-            body={`${money(topCat.total, cur)} this month — ${Math.round(topCat.pct)}% of everything. Trimming it by a fifth would put about ${money(Math.round(trimTarget), cur)} back in your pocket over a year.`}
+            icon={catOf(data.categories, topCat.id).icon}
+            title={`${catOf(data.categories, topCat.id).label} leads`}
+            body={`${money(topCat.total, cur)} · ${Math.round(topCat.pct)}% of spending`}
           />
         )}
         {biggest && (
           <Note
-            emoji="💎"
-            title="Biggest single purchase"
-            body={`${money(biggest.amount, cur)} — ${biggest.merchant || cat(biggest.category).label}. Worth it?`}
+            icon="diamond"
+            title="Biggest buy"
+            body={`${money(biggest.amount, cur)} · ${biggest.merchant || catOf(data.categories, biggest.category).label}`}
           />
         )}
-        {stats.streak > 0 && (
-          <Note emoji="🕊️" title={`${stats.streak} no-spend days in a row`} body="Genuinely the easiest money you'll ever save. Keep it quiet and keep it going." />
-        )}
+        {stats.streak > 0 && <Note icon="moon" title={`${stats.streak}-day no-spend streak`} body="Keep it going." />}
         {stats.projected > stats.spendable && stats.spendable > 0 && (
           <Note
-            emoji="🫧"
-            title="This pace runs over"
-            body={`At today's rhythm you'd land around ${money(Math.round(stats.projected), cur)} — that's ${money(Math.round(stats.projected - stats.spendable), cur)} past your limit. Dropping to ${money(Math.round(stats.safeToday), cur)} a day fixes it.`}
-          />
-        )}
-        {lifetimeSaved > 0 && (
-          <Note
-            emoji="🪷"
-            title="Set aside since you started"
-            body={`${money(Math.round(lifetimeSaved), cur)} across every month you've planned. That is a real number and it is yours.`}
+            icon="flag"
+            title="Running over"
+            body={`Heading for ${money(Math.round(stats.projected), cur)}. Cap the day at ${money(Math.round(stats.safeToday), cur)}.`}
           />
         )}
       </div>
@@ -242,13 +208,13 @@ function Insights() {
   );
 }
 
-function Note({ emoji, title, body }: { emoji: string; title: string; body: string }) {
+function Note({ icon, title, body }: { icon: string; title: string; body: string }) {
   return (
-    <div style={{ display: "flex", gap: 12, padding: "12px 0", borderBottom: "1px solid var(--line)" }}>
-      <span className="dot">{emoji}</span>
-      <div>
-        <div style={{ fontSize: 14.5, marginBottom: 3 }}>{title}</div>
-        <div className="faint" style={{ fontSize: 12.5, lineHeight: 1.55 }}>{body}</div>
+    <div className="row">
+      <Dot icon={icon} />
+      <div className="row-main">
+        <div className="row-title">{title}</div>
+        <div className="row-sub">{body}</div>
       </div>
     </div>
   );
@@ -261,33 +227,25 @@ function Goals() {
   const [sheet, setSheet] = useState(false);
   const [fund, setFund] = useState<string | null>(null);
   const [fundAmt, setFundAmt] = useState("");
-  const [fundDir, setFundDir] = useState<1 | -1>(1);
+  const [dir, setDir] = useState<1 | -1>(1);
 
   const totalSaved = data.goals.reduce((a, g) => a + g.saved, 0);
 
   return (
     <>
       <div className="hero">
-        <p className="label">Tucked away in goals</p>
+        <span className="label">In goals</span>
         <p className="amount amount-xl" style={{ margin: "6px 0 0", color: "var(--olive-900)" }}>
           {money(totalSaved, cur)}
-        </p>
-        <p className="sub" style={{ marginBottom: 0 }}>
-          {data.goals.length === 0
-            ? "Name what you're saving for — it makes saying no much easier."
-            : `Across ${data.goals.length} goal${data.goals.length === 1 ? "" : "s"}.`}
         </p>
       </div>
 
       <div style={{ marginTop: 14 }}>
         {data.goals.length === 0 ? (
-          <div className="card">
-            <Empty emoji="🎯" title="No goals yet" line="A trip, an emergency fund, that one coat." />
-          </div>
+          <div className="card"><Empty icon="target" title="No goals yet" /></div>
         ) : (
           data.goals.map((g) => {
             const pct = g.target > 0 ? (g.saved / g.target) * 100 : 0;
-            const done = pct >= 100;
             const monthsLeft = g.deadline
               ? Math.max(0, Math.round((new Date(g.deadline).getTime() - Date.now()) / 2.63e9))
               : null;
@@ -295,44 +253,37 @@ function Goals() {
             return (
               <div className="card" key={g.id}>
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <Ring pct={pct} size={72} stroke={8} tone="calm">
-                    <span style={{ fontSize: 22 }}>{g.emoji}</span>
+                  <Ring pct={pct} size={70} stroke={8} tone="calm">
+                    <Icon name={g.icon} size={22} style={{ color: "var(--olive-700)" }} />
                   </Ring>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
                       <span style={{ fontSize: 16 }}>{g.name}</span>
-                      <button className="chip btn-sm" onClick={() => removeGoal(g.id)}>✕</button>
+                      <IconBtn icon="close" label="Remove" onClick={() => removeGoal(g.id)} />
                     </div>
-                    <p className="amount" style={{ fontSize: 21, margin: "4px 0 6px" }}>
+                    <p className="amount" style={{ fontSize: 20, margin: "4px 0 6px" }}>
                       {money(g.saved, cur)}
                       <span className="faint" style={{ fontSize: 12.5, fontFamily: "var(--sans)" }}> / {money(g.target, cur)}</span>
                     </p>
-                    <Bar pct={pct} color={done ? "linear-gradient(90deg,#8d9a5b,#b3bd8e)" : "linear-gradient(90deg,#c9a3bb,#b3bd8e)"} />
+                    <Bar pct={pct} color={pct >= 100 ? "linear-gradient(90deg,#8d9a5b,#b3bd8e)" : "linear-gradient(90deg,#c9a3bb,#b3bd8e)"} />
                   </div>
                 </div>
 
                 <p className="faint" style={{ fontSize: 12, margin: "12px 0 0" }}>
-                  {done
-                    ? "Complete — go and enjoy it. 🤍"
+                  {pct >= 100
+                    ? "Done."
                     : perMonth
-                    ? `${money(Math.round(perMonth), cur)} a month to get there by ${new Date(g.deadline!).toLocaleDateString(undefined, { month: "short", year: "numeric" })}.`
+                    ? `${money(Math.round(perMonth), cur)} a month to finish on time.`
                     : `${money(g.target - g.saved, cur)} to go.`}
                 </p>
 
                 <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    style={{ flex: 1 }}
-                    onClick={() => { setFund(g.id); setFundAmt(""); setFundDir(1); }}
-                  >
-                    + Add money
+                  <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => { setFund(g.id); setFundAmt(""); setDir(1); }}>
+                    <Icon name="plus" size={14} /> Add
                   </button>
                   {g.saved > 0 && (
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => { setFund(g.id); setFundAmt(""); setFundDir(-1); }}
-                    >
-                      − Take out
+                    <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => { setFund(g.id); setFundAmt(""); setDir(-1); }}>
+                      <Icon name="minus" size={14} /> Take out
                     </button>
                   )}
                 </div>
@@ -346,71 +297,57 @@ function Goals() {
         New goal
       </button>
 
-      <Sheet open={sheet} onClose={() => setSheet(false)} title="What are you saving for?">
-        <GoalForm
-          cur={cur}
-          onAdd={(g) => {
-            addGoal(g);
-            setSheet(false);
-          }}
-        />
+      <Sheet open={sheet} onClose={() => setSheet(false)} title="New goal">
+        <GoalForm cur={cur} onAdd={(g) => { addGoal(g); setSheet(false); }} />
       </Sheet>
 
-      <Sheet open={!!fund} onClose={() => setFund(null)} title={fundDir === 1 ? "Add to this goal" : "Take from this goal"}>
+      <Sheet open={!!fund} onClose={() => setFund(null)} title={dir === 1 ? "Add" : "Take out"}>
         <Field label={`Amount (${cur})`}>
-          <input
-            className="input"
-            inputMode="decimal"
-            autoFocus
-            value={fundAmt}
-            onChange={(e) => setFundAmt(e.target.value.replace(/[^0-9.]/g, ""))}
-          />
+          <input className="input" inputMode="decimal" autoFocus value={fundAmt} onChange={(e) => setFundAmt(e.target.value.replace(/[^0-9.]/g, ""))} />
         </Field>
         <button
           className="btn btn-primary"
           disabled={!Number(fundAmt)}
           onClick={() => {
-            if (fund) fundGoal(fund, fundDir * (Number(fundAmt) || 0));
+            if (fund) fundGoal(fund, dir * (Number(fundAmt) || 0));
             setFund(null);
           }}
         >
-          {fundDir === 1 ? "Add" : "Take out"}
+          {dir === 1 ? "Add" : "Take out"}
         </button>
       </Sheet>
     </>
   );
 }
 
-const GOAL_EMOJI = ["🤍", "✈️", "🏡", "💍", "🪞", "🧘‍♀️", "🎓", "🚗", "🌊", "🎁", "💐", "🕯️"];
-
 function GoalForm({
   cur,
   onAdd,
 }: {
   cur: string;
-  onAdd: (g: { name: string; emoji: string; target: number; deadline?: string }) => void;
+  onAdd: (g: { name: string; icon: string; target: number; deadline?: string }) => void;
 }) {
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
-  const [emoji, setEmoji] = useState("🤍");
+  const [icon, setIcon] = useState("target");
   const [deadline, setDeadline] = useState("");
 
   return (
     <div>
-      <Field label="Name it">
-        <input className="input" autoFocus placeholder="Emergency fund · Amalfi · new sofa" value={name} onChange={(e) => setName(e.target.value)} />
+      <Field label="Name">
+        <input className="input" autoFocus placeholder="Emergency fund" value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
       <Field label={`Target (${cur})`}>
         <input className="input" inputMode="decimal" placeholder="0" value={target} onChange={(e) => setTarget(e.target.value.replace(/[^0-9.]/g, ""))} />
       </Field>
-      <Field label="By when (optional)">
+      <Field label="Deadline">
         <input className="input" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
       </Field>
-      <Field label="Pick a charm">
-        <div className="chips">
-          {GOAL_EMOJI.map((e) => (
-            <button key={e} className="chip" data-on={emoji === e} onClick={() => setEmoji(e)} style={{ fontSize: 17 }}>
-              {e}
+      <Field label="Icon">
+        <div className="icon-grid">
+          {PICKER_ICONS.map((n) => (
+            <button key={n} className="icon-pick" data-on={icon === n} onClick={() => setIcon(n)} aria-label={n}>
+              <Icon name={n} size={19} />
             </button>
           ))}
         </div>
@@ -418,18 +355,19 @@ function GoalForm({
       <button
         className="btn btn-primary"
         disabled={!name.trim() || !Number(target)}
-        onClick={() => onAdd({ name: name.trim(), emoji, target: Number(target) || 0, deadline: deadline || undefined })}
+        onClick={() => onAdd({ name: name.trim(), icon, target: Number(target) || 0, deadline: deadline || undefined })}
       >
-        Create goal
+        Create
       </button>
     </div>
   );
 }
 
-/* ==================== PAUSE LIST ==================== */
+/* ==================== PAUSE ==================== */
 function Pause() {
   const { data, addWish, resolveWish, removeWish } = useLedger();
   const cur = data.settings.currency;
+  const days = data.settings.pauseDays;
   const [sheet, setSheet] = useState(false);
 
   const open = data.wishlist.filter((w) => !w.resolved);
@@ -439,24 +377,20 @@ function Pause() {
   return (
     <>
       <div className="hero">
-        <p className="label">Saved by walking away</p>
+        <span className="label">Not bought</span>
         <p className="amount amount-xl" style={{ margin: "6px 0 0", color: "var(--olive-900)" }}>
           {money(savedByPassing, cur)}
         </p>
-        <p className="sub" style={{ marginBottom: 0 }}>
-          The thirty-day rule: write it down, wait a month. If you still want it, buy it properly — most things quietly lose their grip.
-        </p>
+        <p className="sub" style={{ marginBottom: 0 }}>Wait {days} days, then decide.</p>
       </div>
 
       <div style={{ marginTop: 14 }}>
         {open.length === 0 ? (
-          <div className="card">
-            <Empty emoji="🫧" title="Nothing on pause" line="Next time you nearly checkout — put it here instead." />
-          </div>
+          <div className="card"><Empty icon="clock" title="Nothing paused" /></div>
         ) : (
           open.map((w) => {
-            const days = Math.floor((Date.now() - w.addedAt) / 86400000);
-            const ready = days >= 30;
+            const waited = Math.floor((Date.now() - w.addedAt) / 86400000);
+            const ready = waited >= days;
             return (
               <div className="card" key={w.id}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
@@ -464,23 +398,23 @@ function Pause() {
                     <div style={{ fontSize: 16 }}>{w.name}</div>
                     <p className="amount amount-md" style={{ margin: "4px 0 0" }}>{money(w.amount, cur)}</p>
                   </div>
-                  <button className="chip btn-sm" onClick={() => removeWish(w.id)}>✕</button>
+                  <IconBtn icon="close" label="Remove" onClick={() => removeWish(w.id)} />
                 </div>
 
                 <div style={{ marginTop: 14 }}>
-                  <Bar pct={(Math.min(days, 30) / 30) * 100} color="linear-gradient(90deg,#c9a3bb,#b3bd8e)" />
+                  <Bar pct={(Math.min(waited, days) / days) * 100} color="linear-gradient(90deg,#c9a3bb,#b3bd8e)" />
                   <p className="faint" style={{ fontSize: 12, margin: "8px 0 0" }}>
-                    {ready ? "Thirty days are up — do you still want it?" : `Day ${days} of 30 · ${30 - days} to go`}
+                    {ready ? "Time's up — still want it?" : `Day ${waited} of ${days}`}
                   </p>
                 </div>
 
                 {ready && (
                   <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                     <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => resolveWish(w.id, "passed")}>
-                      Let it go
+                      Skip it
                     </button>
                     <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => resolveWish(w.id, "bought")}>
-                      Still want it
+                      Buy it
                     </button>
                   </div>
                 )}
@@ -492,16 +426,16 @@ function Pause() {
 
       {passed.length > 0 && (
         <>
-          <h2 className="section">Let go of</h2>
+          <h2 className="section">Skipped</h2>
           <div className="card card-tight">
             {passed.map((w) => (
               <div className="row" key={w.id}>
-                <span className="dot">🕊️</span>
+                <Dot icon="check" tint="#8d9a5b" size={34} />
                 <div className="row-main">
-                  <div className="row-title" style={{ textDecoration: "line-through", opacity: 0.6 }}>{w.name}</div>
+                  <div className="row-title" style={{ opacity: 0.65 }}>{w.name}</div>
                   <div className="row-sub">kept {money(w.amount, cur)}</div>
                 </div>
-                <button className="chip btn-sm" onClick={() => removeWish(w.id)}>✕</button>
+                <IconBtn icon="close" label="Remove" onClick={() => removeWish(w.id)} />
               </div>
             ))}
           </div>
@@ -512,14 +446,8 @@ function Pause() {
         Pause something
       </button>
 
-      <Sheet open={sheet} onClose={() => setSheet(false)} title="Put it on pause">
-        <WishForm
-          cur={cur}
-          onAdd={(w) => {
-            addWish(w);
-            setSheet(false);
-          }}
-        />
+      <Sheet open={sheet} onClose={() => setSheet(false)} title="Pause">
+        <WishForm cur={cur} onAdd={(w) => { addWish(w); setSheet(false); }} />
       </Sheet>
     </>
   );
@@ -531,21 +459,21 @@ function WishForm({ cur, onAdd }: { cur: string; onAdd: (w: { name: string; amou
   const [url, setUrl] = useState("");
   return (
     <div>
-      <Field label="What is it">
-        <input className="input" autoFocus placeholder="The cashmere one…" value={name} onChange={(e) => setName(e.target.value)} />
+      <Field label="What">
+        <input className="input" autoFocus placeholder="The coat" value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
       <Field label={`Price (${cur})`}>
         <input className="input" inputMode="decimal" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))} />
       </Field>
-      <Field label="Link (optional)">
-        <input className="input" placeholder="https://" value={url} onChange={(e) => setUrl(e.target.value)} />
+      <Field label="Link">
+        <input className="input" placeholder="Optional" value={url} onChange={(e) => setUrl(e.target.value)} />
       </Field>
       <button
         className="btn btn-primary"
         disabled={!name.trim() || !Number(amount)}
         onClick={() => onAdd({ name: name.trim(), amount: Number(amount) || 0, url: url || undefined })}
       >
-        Start the 30 days
+        Start
       </button>
     </div>
   );

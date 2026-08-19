@@ -6,33 +6,26 @@ everything lives in your own browser storage.
 
 ## What's inside
 
-**Home** — safe-to-spend-today ring, spent vs spendable, projected month-end, no-spend
-streak, a per-day spending rhythm chart, category breakdown, recent entries, a daily line
-to keep you honest.
+**Home** — safe-to-spend-today ring, current-account and savings balances, per-day
+rhythm chart, category split, recent entries.
 
-**Add** — amount, date, category (14 of them), where/what you got, paid-from account,
-need vs want, how it felt, and free notes. Recent shops come back as one-tap chips, and it
-tells you what the purchase leaves you for the rest of the month before you save it.
+**Add** — amount, date, category, where, account, need/want, feeling, note.
 
-**Log** — every entry, grouped by day, searchable, filterable by category or need/want,
-sortable by size. Tap any row to edit or delete.
+**Log** — searchable, filterable, editable history grouped by day.
 
-**Plan** — this month's income, the savings slice (slider + presets), recurring costs
-(rent, memberships, subscriptions — pausable), or a flat fixed-cost override, plus soft
-per-category limits. Shows the split as savings / fixed / yours-to-spend and the resulting
-daily allowance. One tap to copy last month's plan.
+**Plan** — set every number yourself for any month: income, savings (a percentage *or*
+a fixed amount), recurring costs or a flat fixed total, a manual override for the monthly
+spending limit, and per-category caps.
 
-**Glow** — three tabs:
-- *Insights*: month vs last month, needs-vs-wants ring, six-month trail, which weekday
-  costs you most, where you keep going back, and written nudges (what a 20% trim on your
-  biggest category is worth over a year, whether your pace runs over, etc.)
-- *Goals*: named savings goals with progress rings, deadlines, and the monthly amount
-  needed to hit them.
-- *Pause list*: the 30-day rule. Write down what you nearly bought, wait a month, then
-  decide. Tracks how much you've saved by walking away.
+**Insights** — trends vs last month, needs/wants split, six-month trail, weekday pattern,
+top places, savings goals, and a pause list for the things you nearly bought.
 
-**Settings** — your name, currency, JSON backup + restore, CSV export for spreadsheets,
-and a reset.
+**Settings** — name, currency (any symbol you like), which accounts you use, default
+savings rule, pause-list waiting time, a full category editor (name, icon, colour, order,
+add/delete), JSON backup, CSV export.
+
+Currency defaults to rupees. Categories are seeded on first run and are entirely yours
+to change afterwards. Every icon is a hand-drawn line SVG — no emoji.
 
 ## Run it locally
 

@@ -3,19 +3,20 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useLedger, computeStats } from "@/lib/store";
-import { CATEGORIES, cat } from "@/lib/categories";
+import { catOf } from "@/lib/categories";
 import { money, todayISO } from "@/lib/format";
+import { Icon } from "@/lib/icons";
 import { Field } from "@/components/UI";
 import type { Method, Kind } from "@/lib/types";
 
-const METHODS: { id: Method; label: string; emoji: string }[] = [
-  { id: "current", label: "Current account", emoji: "🏦" },
-  { id: "card", label: "Card", emoji: "💳" },
-  { id: "cash", label: "Cash", emoji: "👛" },
-  { id: "savings", label: "From savings", emoji: "🪷" },
-];
+const METHOD_META: Record<Method, { label: string; icon: string }> = {
+  current: { label: "Current", icon: "bank" },
+  card: { label: "Card", icon: "card" },
+  cash: { label: "Cash", icon: "wallet" },
+  savings: { label: "Savings", icon: "lotus" },
+};
 
-const MOODS = ["needed it", "worth it", "a treat", "impulse", "regret", "celebration"];
+const MOODS = ["needed", "worth it", "a treat", "impulse", "regret"];
 
 export default function AddPage() {
   const router = useRouter();
@@ -25,10 +26,10 @@ export default function AddPage() {
 
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayISO());
-  const [category, setCategory] = useState("dining");
+  const [category, setCategory] = useState(data.categories[0]?.id ?? "other");
   const [merchant, setMerchant] = useState("");
   const [note, setNote] = useState("");
-  const [method, setMethod] = useState<Method>("current");
+  const [method, setMethod] = useState<Method>(data.settings.methods[0] ?? "current");
   const [kind, setKind] = useState<Kind>("want");
   const [mood, setMood] = useState("");
   const [saved, setSaved] = useState(false);
@@ -51,7 +52,7 @@ export default function AddPage() {
     if (value <= 0) return;
     addExpense({ date, amount: value, category, merchant: merchant.trim(), note: note.trim(), method, kind, mood });
     setSaved(true);
-    setTimeout(() => router.push("/log"), 550);
+    setTimeout(() => router.push("/log"), 500);
   }
 
   if (!ready) return <div style={{ height: "60vh" }} />;
@@ -60,29 +61,31 @@ export default function AddPage() {
     return (
       <div className="fade-up" style={{ display: "grid", placeItems: "center", minHeight: "70vh", textAlign: "center" }}>
         <div>
-          <div style={{ fontSize: 46, marginBottom: 12 }}>✓</div>
-          <h1 className="display" style={{ fontSize: 32 }}>Noted.</h1>
-          <p className="sub">{money(value, cur)} · {cat(category).label}</p>
+          <span className="empty-ic" style={{ width: 56, height: 56, margin: "0 auto 14px" }}>
+            <Icon name="check" size={26} />
+          </span>
+          <p className="amount amount-lg" style={{ margin: 0 }}>{money(value, cur)}</p>
+          <p className="sub">{catOf(data.categories, category).label}</p>
         </div>
       </div>
     );
   }
 
+  const methods = data.settings.methods.length ? data.settings.methods : (["current"] as Method[]);
+
   return (
     <form className="fade-up" onSubmit={submit}>
       <header className="page-head">
-        <p className="eyebrow">New entry</p>
-        <h1 className="display">What did you<br />spend on?</h1>
+        <h1 className="display">New entry</h1>
       </header>
 
-      {/* amount */}
       <section className="hero" style={{ textAlign: "center", paddingBottom: 18 }}>
-        <p className="label">Amount</p>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 4 }}>
-          <span className="amount" style={{ fontSize: 28, color: "var(--ink-soft)" }}>{cur}</span>
+        <span className="label">Amount</span>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6, marginTop: 6 }}>
+          <span className="amount" style={{ fontSize: 26, color: "var(--ink-soft)" }}>{cur}</span>
           <input
             className="input-amount"
-            style={{ width: "min(230px, 62vw)" }}
+            style={{ width: "min(180px, 46vw)" }}
             inputMode="decimal"
             placeholder="0"
             value={amount}
@@ -90,11 +93,9 @@ export default function AddPage() {
             onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
           />
         </div>
-        {value > 0 && stats.income > 0 && (
+        {value > 0 && stats.spendable > 0 && (
           <p className="faint" style={{ fontSize: 12, margin: "12px 0 0" }}>
-            {method === "savings"
-              ? "Comes out of savings — won't touch this month's budget"
-              : <>Leaves you {money(afterLeft, cur)} for the rest of {stats.daysLeft} day{stats.daysLeft === 1 ? "" : "s"}</>}
+            {method === "savings" ? "From savings" : `${money(afterLeft, cur)} left after this`}
           </p>
         )}
       </section>
@@ -102,32 +103,21 @@ export default function AddPage() {
       <div className="card" style={{ marginTop: 14 }}>
         <Field label="Category">
           <div className="chips">
-            {CATEGORIES.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className="chip"
-                data-on={category === c.id}
-                onClick={() => setCategory(c.id)}
-              >
-                <span>{c.emoji}</span> {c.label}
+            {data.categories.map((c) => (
+              <button key={c.id} type="button" className="chip" data-on={category === c.id} onClick={() => setCategory(c.id)}>
+                <Icon name={c.icon} size={14} style={{ color: c.tint }} /> {c.label}
               </button>
             ))}
           </div>
         </Field>
 
-        <Field label="Where / what did you get">
-          <input
-            className="input"
-            placeholder="Matcha at Blank Street, Reformer class…"
-            value={merchant}
-            onChange={(e) => setMerchant(e.target.value)}
-          />
+        <Field label="Where">
+          <input className="input" placeholder="Shop or item" value={merchant} onChange={(e) => setMerchant(e.target.value)} />
           {recentMerchants.length > 0 && !merchant && (
             <div className="chips" style={{ marginTop: 8 }}>
               {recentMerchants.map((m) => (
                 <button key={m} type="button" className="chip btn-sm" onClick={() => setMerchant(m)}>
-                  ↺ {m}
+                  {m}
                 </button>
               ))}
             </div>
@@ -135,58 +125,44 @@ export default function AddPage() {
         </Field>
 
         <Field label="Date">
-          <input className="input" type="date" value={date} max={todayISO()} onChange={(e) => setDate(e.target.value)} />
+          <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
 
         <Field label="Paid from">
           <div className="chips">
-            {METHODS.map((m) => (
-              <button key={m.id} type="button" className="chip" data-on={method === m.id} onClick={() => setMethod(m.id)}>
-                <span>{m.emoji}</span> {m.label}
+            {methods.map((m) => (
+              <button key={m} type="button" className="chip" data-on={method === m} onClick={() => setMethod(m)}>
+                <Icon name={METHOD_META[m].icon} size={14} /> {METHOD_META[m].label}
               </button>
             ))}
           </div>
         </Field>
 
-        <Field label="Need or want?">
+        <Field label="Type">
           <div className="segment">
             <button type="button" data-on={kind === "need"} onClick={() => setKind("need")}>Need</button>
             <button type="button" data-on={kind === "want"} onClick={() => setKind("want")}>Want</button>
           </div>
         </Field>
 
-        <Field label="How did it feel? (optional)">
+        <Field label="Feeling">
           <div className="chips">
             {MOODS.map((m) => (
-              <button
-                key={m}
-                type="button"
-                className="chip"
-                data-on={mood === m}
-                onClick={() => setMood(mood === m ? "" : m)}
-              >
+              <button key={m} type="button" className="chip" data-on={mood === m} onClick={() => setMood(mood === m ? "" : m)}>
                 {m}
               </button>
             ))}
           </div>
         </Field>
 
-        <Field label="Notes (optional)">
-          <textarea
-            className="textarea"
-            placeholder="Split with Ayesha · monthly restock · birthday gift for mum"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
+        <Field label="Note">
+          <textarea className="textarea" placeholder="Optional" value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
       </div>
 
       <button className="btn btn-primary" style={{ marginTop: 18 }} disabled={value <= 0}>
-        Add entry
+        Save
       </button>
-      <p className="faint" style={{ fontSize: 11.5, textAlign: "center", marginTop: 12 }}>
-        Everything stays on this device.
-      </p>
     </form>
   );
 }

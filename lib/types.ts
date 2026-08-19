@@ -1,30 +1,41 @@
 export type Method = "current" | "cash" | "card" | "savings";
 export type Kind = "need" | "want";
+export type SavingsMode = "percent" | "amount";
+
+export interface Category {
+  id: string;
+  label: string;
+  icon: string;   // name from lib/icons
+  tint: string;   // hex
+}
 
 export interface Expense {
   id: string;
   date: string;        // YYYY-MM-DD
   amount: number;
-  category: string;    // category id
-  merchant: string;    // where / what I ordered
-  note: string;        // description
+  category: string;
+  merchant: string;
+  note: string;
   method: Method;
   kind: Kind;
-  mood?: string;       // how it felt
+  mood?: string;
   createdAt: number;
 }
 
 export interface MonthPlan {
   income: number;
-  savingsPct: number;   // % of income moved to savings
-  fixedTotal: number;   // manual override for bills, 0 = use recurring list
-  envelopes: Record<string, number>; // categoryId -> monthly cap
+  savingsMode: SavingsMode;
+  savingsPct: number;
+  savingsAmount: number;
+  fixedTotal: number;        // 0 → use the recurring list
+  spendableOverride: number; // 0 → derive from income − savings − fixed
+  envelopes: Record<string, number>;
 }
 
 export interface Goal {
   id: string;
   name: string;
-  emoji: string;
+  icon: string;
   target: number;
   saved: number;
   deadline?: string;
@@ -35,7 +46,7 @@ export interface Recurring {
   id: string;
   name: string;
   amount: number;
-  day: number;         // day of month
+  day: number;
   category: string;
   active: boolean;
 }
@@ -45,20 +56,26 @@ export interface WishItem {
   name: string;
   amount: number;
   url?: string;
-  addedAt: number;     // 30-day pause rule
+  addedAt: number;
   resolved?: "bought" | "passed";
 }
 
 export interface Settings {
   name: string;
   currency: string;
+  savingsMode: SavingsMode;   // default applied to a new month
+  savingsPct: number;
+  savingsAmount: number;
+  pauseDays: number;          // how long the pause list holds something
+  methods: Method[];          // which accounts you actually use
   startedAt: number;
 }
 
 export interface Ledger {
   version: number;
   settings: Settings;
-  plans: Record<string, MonthPlan>;   // "YYYY-MM" -> plan
+  categories: Category[];
+  plans: Record<string, MonthPlan>;
   expenses: Expense[];
   goals: Goal[];
   recurring: Recurring[];

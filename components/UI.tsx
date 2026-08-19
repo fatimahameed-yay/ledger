@@ -2,6 +2,7 @@
 
 import React, { useEffect } from "react";
 import { monthLabel, shiftMonth, monthKey } from "@/lib/format";
+import { Icon } from "@/lib/icons";
 
 /* ---------- progress ring ---------- */
 export function Ring({
@@ -59,15 +60,7 @@ export function Ring({
           style={{ transition: "stroke-dasharray 0.7s cubic-bezier(0.22,1,0.36,1)" }}
         />
       </svg>
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "grid",
-          placeItems: "center",
-          textAlign: "center",
-        }}
-      >
+      <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}>
         {children}
       </div>
     </div>
@@ -75,22 +68,16 @@ export function Ring({
 }
 
 /* ---------- month switcher ---------- */
-export function MonthSwitch({
-  month,
-  setMonth,
-}: {
-  month: string;
-  setMonth: (m: string) => void;
-}) {
+export function MonthSwitch({ month, setMonth }: { month: string; setMonth: (m: string) => void }) {
   const atNow = month >= monthKey(new Date());
   return (
     <div className="month-switch">
       <button onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Previous month">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
+        <Icon name="left" size={16} />
       </button>
       <span className="mlabel">{monthLabel(month)}</span>
       <button onClick={() => setMonth(shiftMonth(month, 1))} disabled={atNow} aria-label="Next month">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
+        <Icon name="right" size={16} />
       </button>
     </div>
   );
@@ -130,7 +117,7 @@ export function Sheet({
   );
 }
 
-/* ---------- misc ---------- */
+/* ---------- bits ---------- */
 export function Bar({ pct, color }: { pct: number; color: string }) {
   return (
     <div className="bar">
@@ -139,27 +126,71 @@ export function Bar({ pct, color }: { pct: number; color: string }) {
   );
 }
 
-export function Empty({ emoji, title, line }: { emoji: string; title: string; line?: string }) {
+/** circular icon chip, tinted to the category colour */
+export function Dot({
+  icon,
+  tint,
+  size = 38,
+}: {
+  icon: string;
+  tint?: string;
+  size?: number;
+}) {
+  return (
+    <span
+      className="dot"
+      style={{
+        width: size,
+        height: size,
+        flex: `0 0 ${size}px`,
+        background: tint ? `${tint}20` : undefined,
+        color: tint ?? "var(--olive-700)",
+      }}
+    >
+      <Icon name={icon} size={Math.round(size * 0.5)} />
+    </span>
+  );
+}
+
+export function Empty({ icon, title }: { icon: string; title: string }) {
   return (
     <div className="empty">
-      <span className="big">{emoji}</span>
-      <div style={{ color: "var(--ink-soft)", marginBottom: 4 }}>{title}</div>
-      {line && <div>{line}</div>}
+      <span className="empty-ic"><Icon name={icon} size={22} /></span>
+      <div>{title}</div>
     </div>
   );
 }
 
-export function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="field">
       <span className="label">{label}</span>
       {children}
     </div>
+  );
+}
+
+/** small square icon-only button */
+export function IconBtn({
+  icon,
+  onClick,
+  label,
+  danger,
+}: {
+  icon: string;
+  onClick: () => void;
+  label: string;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      className="icon-btn"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      style={danger ? { color: "var(--alert)" } : undefined}
+    >
+      <Icon name={icon} size={15} />
+    </button>
   );
 }
